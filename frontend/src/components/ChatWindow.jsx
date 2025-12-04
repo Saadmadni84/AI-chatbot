@@ -2,13 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import { sendMessage } from '../utils/api';
-import { useLocalChat } from '../hooks/useLocalChat';
 
-const ChatWindow = () => {
-  // Use a fixed session ID for now, could be dynamic later
-  const sessionId = 'default-session';
-  const { messages, setMessages } = useLocalChat(sessionId);
-  
+const ChatWindow = ({ messages, setMessages, sessionId }) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState(null);
