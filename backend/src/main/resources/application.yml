@@ -11,3 +11,10 @@ logging:
   level:
     root: INFO
     com.chatbot.backend: DEBUG
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY:your_openai_api_key_here}
+    url: https://api.openai.com/v1/chat/completions
+  model: gpt-3.5-turbo
+  temperature: 0.7
