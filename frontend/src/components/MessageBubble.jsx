@@ -1,7 +1,7 @@
 import React from 'react';
 
-const MessageBubble = ({ message }) => {
-  const isUser = message.role === 'user';
+const MessageBubble = ({ role, content }) => {
+  const isUser = role === 'user';
 
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in-up`}>
@@ -12,7 +12,7 @@ const MessageBubble = ({ message }) => {
             : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
         }`}
       >
-        {message.content}
+        {content}
       </div>
     </div>
   );

@@ -1,16 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
+import { sendMessage } from '../utils/api';
+import { useLocalChat } from '../hooks/useLocalChat';
 
 const ChatWindow = () => {
-  const [messages, setMessages] = useState([
-    { id: 1, role: 'assistant', content: 'Hello! I am your AI assistant. How can I help you today?' },
-    { id: 2, role: 'user', content: 'I need help designing a modern UI.' },
-    { id: 3, role: 'assistant', content: 'I can certainly help with that! What specific elements are you looking to include?' },
-  ]);
+  // Use a fixed session ID for now, could be dynamic later
+  const sessionId = 'default-session';
+  const { messages, setMessages } = useLocalChat(sessionId);
+  
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -20,23 +23,51 @@ const ChatWindow = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 128)}px`;
+    }
+  }, [input]);
+
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
     
-    const newMessage = { id: Date.now(), role: 'user', content: input };
-    setMessages([...messages, newMessage]);
+    const userMessageContent = input.trim();
+    const userMessage = { id: Date.now(), role: 'user', content: userMessageContent };
+    
+    // Optimistically add user message
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
+    setError(null);
 
-    // Simulate AI response
-    setTimeout(() => {
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    try {
+      // Prepare history for backend (exclude the message we just added to UI to avoid duplication if logic changes, 
+      // but actually we need to send the *previous* history. The backend will append the new message from the 'message' field)
+      const history = messages.map(msg => ({ role: msg.role, content: msg.content }));
+      
+      const response = await sendMessage(sessionId, userMessageContent, history);
+      
+      const aiMessage = {
+        id: response.id || Date.now() + 1,
+        role: 'assistant',
+        content: response.message
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setError(err.message || 'Server unavailable. Please try again.');
+    } finally {
       setIsTyping(false);
-      setMessages(prev => [...prev, { 
-        id: Date.now() + 1, 
-        role: 'assistant', 
-        content: 'This is a simulated response. The backend is not connected yet.' 
-      }]);
-    }, 2000);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -52,13 +83,23 @@ const ChatWindow = () => {
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scrollbar-hide">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+            <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
           ))}
+          
           {isTyping && (
             <div className="flex w-full justify-start animate-fade-in-up">
                <TypingIndicator />
             </div>
           )}
+          
+          {error && (
+            <div className="flex justify-center animate-fade-in-up">
+              <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm border border-red-100 shadow-sm">
+                {error}
+              </div>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -74,6 +115,7 @@ const ChatWindow = () => {
             </button>
             
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -85,9 +127,9 @@ const ChatWindow = () => {
 
             <button 
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isTyping}
               className={`p-2 rounded-xl transition-all ${
-                input.trim() 
+                input.trim() && !isTyping
                   ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700' 
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
