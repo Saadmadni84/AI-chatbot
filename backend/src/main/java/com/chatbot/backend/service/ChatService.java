@@ -31,7 +31,23 @@ public class ChatService {
     @Value("${openai.temperature:0.7}")
     private double temperature;
 
+    @Value("${openai.api.key}")
+    private String openAiApiKey;
+
     public ChatResponse handleMessage(ChatRequest request) {
+        // Check for valid API key
+        if (openAiApiKey == null || openAiApiKey.isEmpty() || "your_openai_api_key_here".equals(openAiApiKey)) {
+            return ChatResponse.builder()
+                    .id(UUID.randomUUID().toString())
+                    .message("I am currently running in **Demo Mode** because the OpenAI API key is not configured.\n\n" +
+                            "To enable real AI responses:\n" +
+                            "1. Get an API key from [OpenAI](https://platform.openai.com)\n" +
+                            "2. Set `OPENAI_API_KEY` environment variable or update `application.yml`\n\n" +
+                            "You said: \"" + request.getMessage() + "\"")
+                    .done(true)
+                    .build();
+        }
+
         try {
             return queryOpenAI(request.getHistory(), request.getMessage());
         } catch (WebClientResponseException e) {

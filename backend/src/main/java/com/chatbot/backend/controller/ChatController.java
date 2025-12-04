@@ -27,11 +27,7 @@ public class ChatController {
 
     @PostMapping
     public ResponseEntity<?> chat(@Valid @RequestBody ChatRequest request) {
-        if (openAiApiKey == null || openAiApiKey.isEmpty() || "your_openai_api_key_here".equals(openAiApiKey)) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "OpenAI API key is missing or invalid. Please configure it in application.yml or environment variables."));
-        }
-        
+        // Delegate all logic to service, including API key validation/fallback
         ChatResponse response = chatService.handleMessage(request);
         return ResponseEntity.ok(response);
     }
